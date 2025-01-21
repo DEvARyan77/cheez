@@ -1,0 +1,46 @@
+{% load static %}
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="{% static '/css/signup.css' %}">
+    <title>Cheez</title>
+  </head>
+  <body>
+    <div id="loginpage">
+      <div id="welcome">
+        <h1>Register!</h1>
+        <div>
+          <img src="{% static 'images/avatar.png' %}" alt="Avatar" id="avatar" onclick="document.getElementById('fileInput').click();">
+          <p>Username:</p>
+          <p>Name:</p>
+          <p>Email:</p>
+          <p>Password:</p>
+        </div>
+      </div>
+      <div id="login">
+        <h1>Signup</h1>
+        <form>
+          <input placeholder="Username" required>
+          <input placeholder="Name" required>
+          <input placeholder="Email" required>
+          <input placeholder="Password" type="password" required minlength="8">
+          <button>Signup</button>
+          <p>Have an account? <a href="/login">Login</a></p>
+        </form>
+      </div>
+    </div>
+    <input type="file" id="fileInput" style="display: none;" accept="image/*" onchange="previewImage(event)">
+    
+    <script>
+      function previewImage(event) {
+        const file = event.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            document.getElementById('avatar').src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    </script>
+  </body>
+</html>

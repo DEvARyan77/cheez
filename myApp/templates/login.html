@@ -1,0 +1,27 @@
+{%load static%}
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="{%static '/css/login.css'%}">
+    <title>Cheez</title>
+  </head>
+  <body>
+    <div id="loginpage">
+      <div id="welcome">
+        <h1>Welcome Back!</h1>
+        <div>
+          <p>Username:</p>
+          <p>Password:</p>
+        </div>
+      </div>
+      <div id="login">
+        <h1>Login</h1>
+        <div>
+          <input placeholder="Username">
+          <input placeholder="Password">
+          <button>Login</button>
+          <p>Doesn't have an account? <a href="/signup">Signup</a></p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
