@@ -42,7 +42,7 @@ body{
     background-color: #73A5C6;
 }
 
-#login form{
+#login div{
     margin-top: 10px;
     display: flex;
     flex-direction: column;
@@ -55,7 +55,7 @@ body{
     transform: translateY(50px);
 }
 
-#login form input{
+#login div input{
     width: 450px;
     height: 35px;
     border-radius: 5px;
@@ -65,7 +65,7 @@ body{
     padding-left: 10px;
 }
 
-#login form button{
+#signupForm button{
     height: 40px;
     border-radius: 5px;
     background-color: #2E5984;
@@ -83,6 +83,7 @@ body{
 @media screen and (max-width: 1134px) {
     #loginpage{
       flex-direction: column-reverse;
+      margin-top: 200px;
     }
     #welcome{
         width: 100%;
@@ -93,7 +94,7 @@ body{
     }
     #login{
         width: 100%;
-        height: calc(100%);
+        height: calc(80%);
     }
   }
 

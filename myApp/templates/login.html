@@ -16,12 +16,43 @@
       <div id="login">
         <h1>Login</h1>
         <div>
-          <input placeholder="Username">
-          <input placeholder="Password">
-          <button>Login</button>
+          <input placeholder="Username" id="username">
+          <input placeholder="Password" id="password" type="password">
+          <button type="button" onclick="submitLogin()">Login</button>
           <p>Doesn't have an account? <a href="/signup">Signup</a></p>
         </div>
       </div>
     </div>
+    <script>
+      function submitLogin() {
+          const username = document.getElementById('username').value;
+          const password = document.getElementById('password').value;
+          const data = {
+              username: username,
+              password: password
+          };
+          fetch('http://127.0.0.1:8000/api/login', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(data)
+          })
+          .then(response => {
+              if (!response.ok) {
+                  return response.text().then(text => { throw new Error(text) });
+              }
+              return response.json();
+          })
+          .then(data => {
+              document.cookie = `token=${data.token}; path=/;`;
+              window.location.href = '/home';
+          })
+          .catch((error) => {
+              console.error('Error:', error);
+              alert('Login failed: ' + error.message);
+          });
+      }
+  </script>
   </body>
 </html>
