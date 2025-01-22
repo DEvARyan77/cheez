@@ -1,11 +1,320 @@
 {% load static %}
-<html>
-  <head>
-    <link rel="stylesheet" type="text/css" href="{% static '/css/home.css' %}">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cheez</title>
-  </head>
-  <body>
+    <link rel="stylesheet" type="text/css" href="{% static '/css/home.css' %}">
+    <style>
+        .no-user-found {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 1.5em;
+            color: #888;
+        }
+    </style>
+    <script>
+        var sidebarExpanded = false;
+        var username = '';
+        var chatSocket1 = null;
+        var chatSocket2 = null;
+
+        function clicked(){
+            var sidebar = document.getElementById('sidebar');
+            var messages = document.getElementById('messages');
+            var header = document.getElementById('chatHeader');
+            var messageBox = document.getElementById('messageBox');
+            var container = document.getElementById('container');
+            if(sidebar.style.width === '75px'){
+                sidebar.style.width = '350px';
+                messages.style.width = 'calc(100vw - 350px)';
+                header.style.left = '370px';
+                messageBox.style.transform = 'translateX(275px)';
+                messageBox.style.width = 'calc(100vw - 365px)';
+                container.style.width = 'calc(100vw - 380px)';
+            } else {
+                sidebar.style.width = '75px';
+                messages.style.width = 'calc(100vw - 75px)';
+                header.style.left = '100px';
+                messageBox.style.transform = 'translateX(0px)';
+                messageBox.style.width = 'calc(100vw - 120px)';
+                container.style.width = 'calc(100vw - 100px)';
+            }
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function search() {
+            const query = document.getElementById('search').value;
+            fetch('http://127.0.0.1:8000/api/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query: query })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const searchResultsContainer = document.getElementById('searchResults');
+                searchResultsContainer.innerHTML = ''; // Clear previous results
+                const filteredData = data.filter(user => user !== username); // Filter out the global username
+                if (filteredData.length > 0) {
+                    filteredData.forEach(user => {
+                        addChatElement(user);
+                    });
+                } else {
+                    const noUserFound = document.createElement('div');
+                    noUserFound.className = 'no-user-found';
+                    noUserFound.textContent = 'No user found';
+                    searchResultsContainer.appendChild(noUserFound);
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+        function addChatElement(selectedUsername) {
+            // Check if the chat element already exists
+            if (document.getElementById(`chat-${selectedUsername}`)) {
+                return;
+            }
+
+            const chatContainer = document.createElement('div');
+            chatContainer.className = 'chat';
+            chatContainer.id = `chat-${selectedUsername}`;
+            chatContainer.innerHTML = `
+                <img src="{% static 'images/avatar.png' %}" id="profilePhoto">
+                <div id="user">
+                    <h2>${selectedUsername}</h2>
+                    <p>Message</p>
+                </div>
+            `;
+            chatContainer.onclick = function() {
+                document.getElementById('chatHeader').querySelector('h1').textContent = selectedUsername;
+                document.getElementById('noChat').style.display = 'none';
+                document.getElementById('chatRoom').style.display = 'block';
+
+                // Close existing WebSocket connections if any
+                if (chatSocket1) {
+                    chatSocket1.close();
+                }
+                if (chatSocket2) {
+                    chatSocket2.close();
+                }
+
+                // Create new WebSocket channels
+                chatSocket1 = new WebSocket(
+                    'ws://' + window.location.host + '/ws/chat/' + username + '_' + selectedUsername + '/'
+                );
+                chatSocket2 = new WebSocket(
+                    'ws://' + window.location.host + '/ws/chat/' + selectedUsername + '_' + username + '/'
+                );
+
+                chatSocket1.onmessage = function(e) {
+                    const data = JSON.parse(e.data);
+                    addMessage(document.getElementById('container'), 'incoming', data.message);
+                };
+
+                chatSocket2.onmessage = function(e) {
+                    const data = JSON.parse(e.data);
+                    addMessage(document.getElementById('container'), 'incoming', data.message);
+                };
+
+                chatSocket1.onclose = function(e) {
+                    console.error('Chat socket closed unexpectedly');
+                };
+
+                chatSocket2.onclose = function(e) {
+                    console.error('Chat socket closed unexpectedly');
+                };
+
+                document.getElementById('send').onclick = function(e) {
+                    sendMessage(chatSocket1, chatSocket2);
+                };
+
+                document.getElementById('message').onkeyup = function(e) {
+                    if (e.keyCode === 13) {  // Enter key
+                        sendMessage(chatSocket1, chatSocket2);
+                    }
+                };
+
+                // Send request to add friend
+                fetch('http://127.0.0.1:8000/api/friend', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ token: getCookie('token'), friend: selectedUsername })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Friend added:', data);
+                })
+                .catch((error) => {
+                    console.error('Error adding friend:', error);
+                });
+            };
+            document.getElementById('searchResults').appendChild(chatContainer);
+        }
+
+        window.onload = function() {
+            const token = getCookie('token');
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+
+            fetch('http://127.0.0.1:8000/api/validate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ token: token })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.username) {
+                    window.location.href = '/login';
+                } else {
+                    username = data.username; // Set the global username variable
+                    console.log(username);
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                window.location.href = '/login';
+            });
+
+            var sidebar = document.getElementById('sidebar');
+            var messages = document.getElementById('messages');
+            var header = document.getElementById('chatHeader');
+            var messageBox = document.getElementById('messageBox');
+            messageBox.style.width = 'calc(100vw - 90px)';
+            sidebar.style.width = '75px';
+            messages.style.width = 'calc(100vw - 75px)';
+            header.style.left = '100px';
+
+            // Initialize chat with some sample messages
+            var sampleMessages = "incoming#Hello#outgoing#Hi, how are you?#incoming#How are you doing?#incoming#Hello#outgoing#Hi, how are you?#incoming#How are you doing?#incoming#Hello#outgoing#Hi, how are you?#incoming#How are you doing?#incoming#Hello#outgoing#Hi, how are you?#incoming#How are you doing?#incoming#Hello#outgoing#Hi, how are you?#incoming#How are you doing?"; 
+            processMessages(sampleMessages);
+
+            // Initially show noChat and hide chatRoom
+            document.getElementById('noChat').style.display = 'block';
+            document.getElementById('chatRoom').style.display = 'none';
+        };
+
+        // Function to process the string of messages and add them dynamically
+        function processMessages(messagesString) {
+            var messagesArray = messagesString.split('#');
+            var container = document.getElementById('container'); // This is the shared container for incoming/outgoing messages
+            
+            // Iterate through the messagesArray
+            for (var i = 0; i < messagesArray.length; i += 2) {
+                var type = messagesArray[i].trim(); // Either 'incoming' or 'outgoing'
+                var message = messagesArray[i + 1]?.trim(); // The actual message content
+
+                if (type && message) {
+                    addMessage(container, type, message); // Pass container along with type and message
+                }
+            }
+        }
+
+        // Function to add messages dynamically inside the container
+        function addMessage(container, type, message) {
+            var messageContainer = document.createElement('div');
+            messageContainer.classList.add(type); // Add either 'incoming' or 'outgoing' class
+
+            var messageText = document.createElement('p');
+            messageText.textContent = message;  // Set the message text
+
+            messageContainer.appendChild(messageText);  // Append the text to the message container
+
+            container.appendChild(messageContainer);
+        }
+
+        // Function to handle the dynamic resizing of the message box
+        function adjustMessageBoxHeight() {
+            var messageBox = document.getElementById('message');
+            messageBox.style.height = '40px';
+            var maxHeight = 200;
+            if (messageBox.scrollHeight > maxHeight) {
+                messageBox.style.height = maxHeight + 'px';
+            } else {
+                messageBox.style.height = messageBox.scrollHeight + 'px';
+            }
+        }
+
+        // Function to handle sending the message
+        function sendMessage(chatSocket1, chatSocket2) {
+            const messageInputDom = document.getElementById('message');
+            const message = messageInputDom.value;
+            if (message.trim() !== "") {
+                chatSocket1.send(JSON.stringify({
+                    'message': message
+                }));
+                chatSocket2.send(JSON.stringify({
+                    'message': message
+                }));
+                addMessage(document.getElementById('container'), 'outgoing', message);
+                messageInputDom.value = '';
+                adjustMessageBoxHeight();
+            }
+        }
+    </script>
+</head>
+<body>
     <div id="homepage">
-      
-  </body>
+        <div id="sidebar">
+            <div id="sidebar_images">
+                <img src="{% static 'images/hamburger.svg' %}" id="hamburger" onclick="clicked()">
+                <img src="{% static 'images/chat.svg' %}" id="hamburger">
+            </div>
+            <div id="peoples">
+                <h1>Chats</h1>
+                <input placeholder="Search" id="search" oninput="search()">
+                <div id="searchResults"></div>
+            </div>
+        </div>
+        <div id="messages">
+            <div id="noChat">
+                <p>Select a user to start conversation</p>
+            </div>
+            <div id="chatRoom">
+                <div id="chatHeader">
+                    <img src="{% static 'images/avatar.png' %}" id="profilePhoto">
+                    <h1>Username</h1>
+                </div>
+                <div id="container">
+                    <!-- Incoming and outgoing messages will be added here dynamically -->
+                </div>
+                <div id="messageBox">
+                    <!-- Change to textarea for dynamic resizing -->
+                    <div class="textareaWrapper">
+                        <textarea placeholder="Type a message" id="message" oninput="adjustMessageBoxHeight()"></textarea>
+                    </div>
+                    <img src="{% static 'images/send.png' %}" id="send">
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
 </html>

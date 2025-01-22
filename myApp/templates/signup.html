@@ -10,28 +10,70 @@
         <h1>Register!</h1>
         <div>
           <img src="{% static 'images/avatar.png' %}" alt="Avatar" id="avatar" onclick="document.getElementById('fileInput').click();">
-          <p>Username:</p>
-          <p>Name:</p>
-          <p>Email:</p>
-          <p>Password:</p>
+          <p>Username: <span id="displayUsername"></span></p>
+          <p>Name: <span id="displayName"></span></p>
+          <p>Email: <span id="displayEmail"></span></p>
+          <p>Password: <span id="displayPassword"></span></p>
         </div>
       </div>
       <div id="login">
         <h1>Signup</h1>
-        <form>
-          <input placeholder="Username" required>
-          <input placeholder="Name" required>
-          <input placeholder="Email" required>
-          <input placeholder="Password" type="password" required minlength="8">
-          <button>Signup</button>
+        <div id="signupForm">
+          <input placeholder="Username" id="username" oninput="updateDisplay('username', 'displayUsername')" required>
+          <input placeholder="Name" id="name" oninput="updateDisplay('name', 'displayName')" required>
+          <input placeholder="Email" id="email" oninput="updateDisplay('email', 'displayEmail')" required>
+          <input placeholder="Password" id="password" type="password" oninput="updateDisplay('password', 'displayPassword')" required minlength="8">
+          <button type="button" onclick="submit()">Signup</button>
           <p>Have an account? <a href="/login">Login</a></p>
-        </form>
+        </div>
       </div>
     </div>
     <input type="file" id="fileInput" style="display: none;" accept="image/*" onchange="previewImage(event)">
     
     <script>
-      function previewImage(event) {
+          function updateDisplay(inputId, displayId) {
+            const inputValue = document.getElementById(inputId).value;
+            if (inputId === 'password') {
+                document.getElementById(displayId).textContent = 'It is secret'.slice(0, inputValue.length)
+            } else {
+                document.getElementById(displayId).textContent = inputValue;
+            }
+        }
+        function submit() {
+          const username = document.getElementById('username').value;
+          const name = document.getElementById('name').value;
+          const email = document.getElementById('email').value;
+          const password = document.getElementById('password').value;
+          const data = {
+            username: username,
+            email: email,
+            password: password,
+            name: name
+          };
+          console.log(data);
+          fetch('http://127.0.0.1:8000/api/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })  
+                .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => { throw new Error(text) });
+                }
+                if(response.ok){
+                  window.location.href = '/login';
+                  return;
+                }
+                return response.json();
+            })
+                .catch((error) => {
+                    console.error('Error:', error);
+                    alert(error);
+                });
+        }
+        function previewImage(event) {
         const file = event.target.files[0];
         if (file) {
           const reader = new FileReader();
